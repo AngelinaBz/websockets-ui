@@ -1,5 +1,6 @@
 export enum MessageType {
     Registration = "reg",
+    UpdateWinners = "update_winners",
 }
 
 export interface RegistrationData {
@@ -20,12 +21,12 @@ export interface RegistrationOutputMessage {
     errorText: string;
 }
 
-export class RegistrationResponse implements WsMessage {
+export class WsResponse implements WsMessage {
     type: string;
     data: string;
     id: number;
-    constructor(data: string){
-        this.type = MessageType.Registration;
+    constructor(type: string, data: string){
+        this.type = type;
         this.data = data;
         this.id = 0;
     }

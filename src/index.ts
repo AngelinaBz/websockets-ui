@@ -10,7 +10,7 @@ const WS_PORT = 3000;
 console.log(`Start static http server on the ${HTTP_PORT} port!`);
 httpServer.listen(HTTP_PORT);
 
-const wsServer = new WebSocketServer({ port: WS_PORT });
+export const wsServer = new WebSocketServer({ port: WS_PORT });
 console.log(`Start WS server on the ${WS_PORT} port!`);
 
 wsServer.on('connection', (ws) => {
