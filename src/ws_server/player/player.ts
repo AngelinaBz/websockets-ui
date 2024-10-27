@@ -12,7 +12,6 @@ export class Player {
     }
 }
 
-
 export class PlayerDatabase {
     players: Player[] = [];
 
@@ -25,3 +24,5 @@ export class PlayerDatabase {
         return existingPlayer.password === password;
     }
 }
+
+export const playerDatabase = new PlayerDatabase();

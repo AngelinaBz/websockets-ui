@@ -1,9 +1,8 @@
 import { WsMessage, RegistrationOutputResponse, MessageType, WsResponse } from "../../models/models";
 import WebSocket from "ws";
-import { PlayerDatabase } from "../db";
-import { wsServer } from "../..";
-
-const playerDatabase = new PlayerDatabase();
+import { playerDatabase, Player } from "../player/player";
+import { roomDatabase } from "../room/room";
+import { clients } from "../..";
 
 export function handleMessage(ws: WebSocket, msg: WsMessage) {
     switch (msg.type) {
@@ -20,7 +19,8 @@ function handleRegistration(ws: WebSocket, msg: WsMessage) {
     let result;
     if (playerDatabase.validatePlayer(regData.name, regData.password)) {
         result = new RegistrationOutputResponse(regData.name, regData.index);
-        updateWinners(ws);
+        updateWinners();
+        updateRoom();
     } else {
         result = new RegistrationOutputResponse(regData.name, regData.index, "Incorrect password");
     }
@@ -29,12 +29,26 @@ function handleRegistration(ws: WebSocket, msg: WsMessage) {
     console.log(response);
 }
 
-function updateWinners(ws: WebSocket) {
+function updateWinners() {
     const winnersData = playerDatabase.players.map(player => ({
         name: player.name,
         wins: player.wins,
     }));
 
     let response: WsMessage = new WsResponse(MessageType.UpdateWinners, JSON.stringify(winnersData.sort((a, b) => b.wins - a.wins)));
-    ws.send(JSON.stringify(response));
+    clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(response));
+        }
+    });
+}
+
+function updateRoom() {
+    const rooms = roomDatabase.updateRoomState();
+    const response: WsMessage = new WsResponse(MessageType.UpdateRoom, JSON.stringify(rooms));
+    clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(response));
+        }
+    });
 }
