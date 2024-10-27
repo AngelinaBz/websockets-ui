@@ -1,13 +1,20 @@
 import { WsMessage, RegistrationOutputResponse, MessageType, WsResponse } from "../../models/models";
 import WebSocket from "ws";
-import { playerDatabase, Player } from "../player/player";
-import { roomDatabase } from "../room/room";
+import { playerDatabase } from "../player/player";
+import { roomDatabase, updateRoom } from "../room/room";
 import { clients } from "../..";
+import { updateWinners } from "../player/player";
 
 export function handleMessage(ws: WebSocket, msg: WsMessage) {
     switch (msg.type) {
         case MessageType.Registration:
             handleRegistration(ws, msg);
+            break;
+        case MessageType.CreateRoom:
+            handleCreateRoom(ws);
+            break;
+        case MessageType.AddUserToRoom:
+            handleAddUserToRoom(ws, msg);
             break;
         default:
             console.warn("Unknown message type: ", msg.type);
@@ -29,26 +36,40 @@ function handleRegistration(ws: WebSocket, msg: WsMessage) {
     console.log(response);
 }
 
-function updateWinners() {
-    const winnersData = playerDatabase.players.map(player => ({
-        name: player.name,
-        wins: player.wins,
-    }));
+function handleCreateRoom(ws: WebSocket) {
+    const currentPlayer = playerDatabase.getPlayer(ws as WebSocket);
+    
+    if (currentPlayer) {
+        const newRoom = roomDatabase.createRoom();
+        roomDatabase.addUserToRoom(newRoom.roomId, currentPlayer);
 
-    let response: WsMessage = new WsResponse(MessageType.UpdateWinners, JSON.stringify(winnersData.sort((a, b) => b.wins - a.wins)));
-    clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(response));
-        }
-    });
+        updateRoom();
+    }
 }
 
-function updateRoom() {
-    const rooms = roomDatabase.updateRoomState();
-    const response: WsMessage = new WsResponse(MessageType.UpdateRoom, JSON.stringify(rooms));
-    clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(response));
+function handleAddUserToRoom(ws: WebSocket, msg: WsMessage) {
+    const data = JSON.parse(msg.data);
+    const roomId = data.indexRoom;
+    const currentPlayer = playerDatabase.getPlayer(ws as WebSocket);
+
+    const room = roomDatabase.rooms.find(r => r.roomId === roomId);
+
+    if (room && currentPlayer && !room.players.some(p => p.name === currentPlayer.name) && roomDatabase.addUserToRoom(roomId, currentPlayer)) {
+        updateRoom();
+
+        if (room.players.length === 2) {
+            const gameData = {
+                idGame: Math.random(),
+                idPlayer: currentPlayer.index
+            };
+            let response: WsMessage = new WsResponse(MessageType.CreateGame, JSON.stringify((gameData)));
+
+            room.players.forEach(player => {
+                const playerWs = Array.from(clients).find(client => player.name === playerDatabase.getPlayer(client)?.name);
+                if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                    playerWs.send(JSON.stringify(response));
+                }
+            });
         }
-    });
+    }
 }

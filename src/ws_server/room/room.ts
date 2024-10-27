@@ -1,4 +1,7 @@
 import { Player } from "../player/player";
+import { WsMessage, MessageType, WsResponse } from "../../models/models";
+import WebSocket from "ws";
+import { clients } from "../..";
 
 interface RoomData {
     roomId: number;
@@ -49,6 +52,16 @@ export class RoomDatabase {
             }))
         }));
     }
+}
+
+export function updateRoom() {
+    const rooms = roomDatabase.updateRoomState();
+    const response: WsMessage = new WsResponse(MessageType.UpdateRoom, JSON.stringify(rooms));
+    clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(response));
+        }
+    });
 }
 
 export const roomDatabase = new RoomDatabase();
