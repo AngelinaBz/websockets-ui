@@ -1,9 +1,9 @@
-import { WsMessage, RegistrationOutputResponse, MessageType, WsResponse } from "../../models/models";
+import { WsMessage, RegistrationOutputResponse, MessageType, WsResponse, ShipData } from "../../models/models";
 import WebSocket from "ws";
-import { playerDatabase } from "../player/player";
-import { roomDatabase, updateRoom } from "../room/room";
+import { playerDatabase, updateWinners, Player } from "../db/player";
+import { roomDatabase, updateRoom, Room } from "../db/room";
 import { clients } from "../..";
-import { updateWinners } from "../player/player";
+import { Ship, PlayerShips } from "../db/ship";
 
 export function handleMessage(ws: WebSocket, msg: WsMessage) {
     switch (msg.type) {
@@ -16,8 +16,11 @@ export function handleMessage(ws: WebSocket, msg: WsMessage) {
         case MessageType.AddUserToRoom:
             handleAddUserToRoom(ws, msg);
             break;
+        case MessageType.AddShips:
+            handleAddShips(ws, msg);
+            break;
         default:
-            console.warn("Unknown message type: ", msg.type);
+            console.warn("Unknown command: ", msg.type);
     }
 }
 
@@ -59,9 +62,10 @@ function handleAddUserToRoom(ws: WebSocket, msg: WsMessage) {
 
         if (room.players.length === 2) {
             const gameData = {
-                idGame: Math.random(),
-                idPlayer: currentPlayer.index
+                gameId: Math.random(),
+                playerId: currentPlayer.index
             };
+            room.setGameId(gameData.gameId);
             let response: WsMessage = new WsResponse(MessageType.CreateGame, JSON.stringify((gameData)));
 
             room.players.forEach(player => {
@@ -71,5 +75,41 @@ function handleAddUserToRoom(ws: WebSocket, msg: WsMessage) {
                 }
             });
         }
+    }
+}
+
+function handleAddShips(ws: WebSocket, msg: WsMessage) {
+    const { gameId, ships, indexPlayer } = JSON.parse(msg.data);
+    const currentPlayer = playerDatabase.getPlayer(ws as WebSocket);
+
+    const room = roomDatabase.rooms.find(r => r.gameId === gameId);
+
+    if (room && currentPlayer) {
+        room.addShipsForPlayer(currentPlayer.index, ships.map((shipData: ShipData) => new Ship(shipData.position, shipData.direction, shipData.length, shipData.type)));
+
+        const otherPlayer = room.players.find(player => player.index !== currentPlayer.index);
+        const playerShips = room.playerShips.get(currentPlayer.index);
+
+        if (playerShips && otherPlayer && room.playerShips.has(otherPlayer.index)) {
+            startGame(room, currentPlayer, otherPlayer, playerShips);
+        }
+    }
+}
+
+function startGame(room: Room, currentPlayer: Player, otherPlayer: Player, playerShips: PlayerShips) {
+    const ships = playerShips.ships;
+    const otherPlayerShips = room.playerShips.get(otherPlayer.index);
+    if (otherPlayerShips) {
+        const gameData = {
+            ships: ships,
+            currentPlayerIndex: currentPlayer.index,
+        };
+        let response: WsMessage = new WsResponse(MessageType.StartGame, JSON.stringify(gameData));
+        room.players.forEach(player => {
+            const playerWs = Array.from(clients).find(client => player.name === playerDatabase.getPlayer(client)?.name);
+            if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+                playerWs.send(JSON.stringify(response));
+            }
+        });
     }
 }

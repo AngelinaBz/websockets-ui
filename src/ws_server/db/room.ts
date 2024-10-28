@@ -1,16 +1,14 @@
-import { Player } from "../player/player";
-import { WsMessage, MessageType, WsResponse } from "../../models/models";
+import { Player } from "./player";
+import { WsMessage, MessageType, WsResponse, RoomData } from "../../models/models";
 import WebSocket from "ws";
 import { clients } from "../..";
-
-interface RoomData {
-    roomId: number;
-    roomUsers: { name: string; index: number | string; }[];
-}
+import { PlayerShips, Ship } from "./ship";
 
 export class Room {
     roomId: number;
     players: Player[] = [];
+    playerShips: Map<number | string, PlayerShips> = new Map();
+    gameId?: number | string;
 
     constructor(roomId: number) {
         this.roomId = roomId;
@@ -22,6 +20,23 @@ export class Room {
             return true;
         }
         return false;
+    }
+
+    setGameId(gameId: number | string) {
+        this.gameId = gameId;
+    }
+
+    addShipsForPlayer(playerId: number | string, ships: Ship[]): void {
+        let playerShips = this.playerShips.get(playerId);
+        if (!playerShips) {
+            playerShips = new PlayerShips(playerId);
+            this.playerShips.set(playerId, playerShips);
+        }
+
+        ships.forEach(ship => {
+            playerShips.ships.push(ship);
+        });
+        console.log(this.playerShips.get);
     }
 }
 
@@ -39,6 +54,11 @@ export class RoomDatabase {
     addUserToRoom(roomId: number, player: Player): boolean {
         const room = this.rooms.find(r => r.roomId === roomId);
         return room ? room.addPlayer(player) : false;
+    }
+
+    getPlayerShips(roomId: number, playerId: number | string): PlayerShips | undefined {
+        const room = this.rooms.find(r => r.roomId === roomId);
+        return room ? room.playerShips.get(playerId) : undefined;
     }
 
     updateRoomState(): RoomData[] {

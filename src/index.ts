@@ -18,11 +18,9 @@ console.log(`Start WS server on the ${WS_PORT} port!`);
 wsServer.on('connection', (ws) => {
     console.log('New client connected');
     clients.add(ws);
-    console.log(clients);
 
     ws.on('message', (message) => {
         const msg: WsMessage = JSON.parse(message.toString());
-        console.log(msg);
         handleMessage(ws, msg);
     });
     

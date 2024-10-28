@@ -5,6 +5,8 @@ export enum MessageType {
     AddUserToRoom = "add_user_to_room",
     CreateGame = "create_game",
     UpdateRoom = "update_room",
+    AddShips = "add_ships",
+    StartGame = "start_game",
 }
 
 export interface RegistrationData {
@@ -23,6 +25,23 @@ export interface RegistrationOutputMessage {
     index: number | string;
     error: boolean;
     errorText: string;
+}
+
+export interface RoomData {
+    roomId: number;
+    roomUsers: { name: string; index: number | string; }[];
+}
+
+export interface ShipPosition {
+    x: number;
+    y: number;
+}
+
+export interface ShipData {
+    position: ShipPosition;
+    direction: boolean;
+    length: number;
+    type: "small" | "medium" | "large" | "huge";
 }
 
 export class WsResponse implements WsMessage {
