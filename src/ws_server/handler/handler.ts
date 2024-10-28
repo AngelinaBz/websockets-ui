@@ -28,7 +28,7 @@ export function handleMessage(ws: WebSocket, msg: WsMessage) {
 function handleRegistration(ws: WebSocket, msg: WsMessage) {
     let regData = JSON.parse(msg.data);
     let result;
-    if (playerDatabase.validatePlayer(regData.name, regData.password)) {
+    if (playerDatabase.validatePlayer(regData.name, regData.password, ws)) {
         result = new RegistrationOutputResponse(regData.name, regData.index);
         updateWinners();
         updateRoom();

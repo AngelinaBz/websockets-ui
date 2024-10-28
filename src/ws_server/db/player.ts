@@ -7,30 +7,39 @@ export class Player {
     name: string;
     password: string;
     wins: number;
+    socket: WebSocket;
 
-    constructor(name: string, password: string, index: number) {
+    constructor(name: string, password: string, index: number, socket: WebSocket) {
         this.index = index;
         this.name = name;
         this.password = password;
         this.wins = 0;
+        this.socket = socket;
     }
 }
 
 export class PlayerDatabase {
     players: Player[] = [];
 
-    validatePlayer(name: string, password: string): boolean {
+    validatePlayer(name: string, password: string, socket: WebSocket): boolean {
         const existingPlayer = this.players.find(player => player.name === name);
         if (!existingPlayer) {
-            this.players.push(new Player(name, password, this.players.length));
+            this.players.push(new Player(name, password, this.players.length, socket));
             return true;
         }
-        return existingPlayer.password === password;
+        if (existingPlayer.password === password) {
+            if (existingPlayer.socket.readyState === WebSocket.OPEN) {
+                existingPlayer.socket.close();
+            }
+            existingPlayer.socket = socket;
+            return true;
+        }
+        
+        return false;
     }
 
     getPlayer(socket: WebSocket): Player | undefined {
-        const playerIndex = Array.from(clients).findIndex(client => client === socket);
-        return playerIndex !== -1 ? this.players[playerIndex] : undefined;
+        return this.players.find(player => player.socket === socket);
     }
 }
 
@@ -45,7 +54,7 @@ export function updateWinners() {
         if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(response));
         }
-    });
+   });
 }
 
 export const playerDatabase = new PlayerDatabase();

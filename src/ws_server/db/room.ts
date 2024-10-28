@@ -36,7 +36,6 @@ export class Room {
         ships.forEach(ship => {
             playerShips.ships.push(ship);
         });
-        console.log(this.playerShips.get);
     }
 }
 
